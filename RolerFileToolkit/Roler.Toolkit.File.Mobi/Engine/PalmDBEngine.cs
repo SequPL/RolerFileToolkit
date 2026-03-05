@@ -20,7 +20,10 @@ namespace Roler.Toolkit.File.Mobi.Engine
             byte[] buffer = new byte[NameByteLength];
             if (stream.Read(buffer, 0, NameByteLength) == NameByteLength)
             {
-                result = new PalmDB { Name = Encoding.UTF8.GetString(buffer) };
+                // Extract null-terminated string from name field for better compatibility
+                string name = ExtractNullTerminatedString(buffer);
+                result = new PalmDB { Name = name };
+                
                 if (stream.TryReadUshort(out ushort attribute))
                 {
                     result.Attribute = (PalmDBAttribute)attribute;
@@ -29,6 +32,9 @@ namespace Roler.Toolkit.File.Mobi.Engine
                 {
                     result.Version = version;
                 }
+                
+                // Keep original skip - this works correctly for MOBI files
+                // Skip: CreationDate(4), ModificationDate(4), LastBackupDate(4), ModificationNumber(4), AppInfoID(4), SortInfoID(4) = 24 bytes
                 stream.Seek(4 * 6, SeekOrigin.Current);
 
                 if (stream.TryReadUint(out uint type))
@@ -73,6 +79,39 @@ namespace Roler.Toolkit.File.Mobi.Engine
             }
 
             return result;
+        }
+
+        /// <summary>
+        /// Extracts null-terminated string from byte array
+        /// </summary>
+        /// <param name="buffer">Byte array containing string data</param>
+        /// <returns>Extracted string without null terminator and padding</returns>
+        private static string ExtractNullTerminatedString(byte[] buffer)
+        {
+            if (buffer == null || buffer.Length == 0)
+                return string.Empty;
+
+            // Find the first null byte
+            int nullIndex = -1;
+            for (int i = 0; i < buffer.Length; i++)
+            {
+                if (buffer[i] == 0)
+                {
+                    nullIndex = i;
+                    break;
+                }
+            }
+
+            // If no null terminator found, use entire buffer
+            int length = nullIndex >= 0 ? nullIndex : buffer.Length;
+            
+            // Remove any trailing null bytes and whitespace
+            while (length > 0 && (buffer[length - 1] == 0 || buffer[length - 1] == 32))
+            {
+                length--;
+            }
+
+            return length > 0 ? Encoding.UTF8.GetString(buffer, 0, length) : string.Empty;
         }
 
         public static void Write(PalmDB file, Stream stream)

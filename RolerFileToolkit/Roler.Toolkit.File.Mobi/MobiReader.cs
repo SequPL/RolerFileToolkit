@@ -186,6 +186,110 @@ namespace Roler.Toolkit.File.Mobi
             return null;
         }
 
+        /// <summary>
+        /// Gets image by record index (rectindex) - provides correct mapping for image indices
+        /// </summary>
+        /// <param name="rectIndex">Relative image index (rectindex from HTML)</param>
+        /// <returns>Stream containing image data or null if not found</returns>
+        public Stream GetImageByRectIndex(int rectIndex)
+        {
+            if (this._disposed)
+            {
+                throw new ObjectDisposedException("stream");
+            }
+
+            // rectIndex should map directly to the record position
+            // This avoids the incorrect offset calculation that was causing issues
+            if (rectIndex >= 0 && rectIndex < this._palmDBRecordList.Count)
+            {
+                byte[] bytes = this.ReadPalmDBRecord(this._palmDBRecordList[rectIndex]);
+                if (bytes != null)
+                {
+                    return new MemoryStream(bytes);
+                }
+            }
+            return null;
+        }
+
+        /// <summary>
+        /// Gets image by record index with structure context for enhanced mapping
+        /// This method provides fallback strategies for different MOBI file variations
+        /// </summary>
+        /// <param name="structure">MOBI structure containing header information</param>
+        /// <param name="rectIndex">Relative image index (rectindex from HTML)</param>
+        /// <returns>Stream containing image data or null if not found</returns>
+        public Stream GetImageByRectIndex(Structure structure, int rectIndex)
+        {
+            if (this._disposed)
+            {
+                throw new ObjectDisposedException("stream");
+            }
+            if (structure is null)
+            {
+                throw new ArgumentNullException(nameof(structure));
+            }
+
+            // Strategy 1: Direct mapping (rectIndex as absolute record index)
+            // This should work for most cases where rectIndex directly corresponds to record position
+            if (rectIndex >= 0 && rectIndex < this._palmDBRecordList.Count)
+            {
+                byte[] bytes = this.ReadPalmDBRecord(this._palmDBRecordList[rectIndex]);
+                if (bytes != null && IsValidImageData(bytes))
+                {
+                    return new MemoryStream(bytes);
+                }
+            }
+
+            // Strategy 2: FirstImageIndex + rectIndex (original logic as fallback)
+            // Keep this as fallback for files that might use relative indexing
+            if (structure.MobiHeader?.FirstImageIndex != null &&
+                structure.MobiHeader.FirstImageIndex != MobiHeaderEngine.UnavailableIndex)
+            {
+                var absoluteIndex = (int)(structure.MobiHeader.FirstImageIndex + rectIndex);
+                if (absoluteIndex >= 0 && absoluteIndex < this._palmDBRecordList.Count)
+                {
+                    byte[] bytes = this.ReadPalmDBRecord(this._palmDBRecordList[absoluteIndex]);
+                    if (bytes != null && IsValidImageData(bytes))
+                    {
+                        return new MemoryStream(bytes);
+                    }
+                }
+            }
+
+            return null;
+        }
+
+        /// <summary>
+        /// Quick validation to check if data appears to be valid image content
+        /// </summary>
+        /// <param name="data">Byte array to validate</param>
+        /// <returns>True if data appears to be valid image data</returns>
+        private static bool IsValidImageData(in byte[] data)
+        {
+            if (data == null || data.Length < 4)
+                return false;
+
+            // Check for common image file signatures
+            // JPEG: FF D8 FF
+            if (data.Length >= 3 && data[0] == 0xFF && data[1] == 0xD8 && data[2] == 0xFF)
+                return true;
+
+            // PNG: 89 50 4E 47
+            if (data.Length >= 4 && data[0] == 0x89 && data[1] == 0x50 && data[2] == 0x4E && data[3] == 0x47)
+                return true;
+
+            // GIF: 47 49 46 38 or 47 49 46 39
+            if (data.Length >= 4 && data[0] == 0x47 && data[1] == 0x49 && data[2] == 0x46 &&
+                (data[3] == 0x38 || data[3] == 0x39))
+                return true;
+
+            // BMP: 42 4D
+            if (data.Length >= 2 && data[0] == 0x42 && data[1] == 0x4D)
+                return true;
+
+            return false;
+        }
+
         #region Structure
 
         private Structure ReadStructure()
