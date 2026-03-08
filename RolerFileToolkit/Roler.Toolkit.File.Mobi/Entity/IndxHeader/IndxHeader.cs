@@ -1,4 +1,6 @@
-﻿namespace Roler.Toolkit.File.Mobi.Entity
+﻿using System.Collections.Generic;
+
+namespace Roler.Toolkit.File.Mobi.Entity
 {
     public class IndxHeader
     {
@@ -52,5 +54,9 @@
         /// </summary>
         public uint LigtStart { get; set; }
 
+        /// <summary>
+        /// Gets or sets the list of parsed index entries (chapters).
+        /// </summary>
+        public List<IndxEntry> Entries { get; set; } = new List<IndxEntry>();
     }
 }

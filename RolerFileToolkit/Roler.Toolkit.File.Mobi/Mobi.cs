@@ -1,4 +1,5 @@
-﻿
+﻿using System.Collections.Generic;
+
 namespace Roler.Toolkit.File.Mobi
 {
     public class Mobi
@@ -19,5 +20,7 @@ namespace Roler.Toolkit.File.Mobi
         public ContentFile Cover { get; set; }
 
         public string Text { get; set; }
+        
+        public IList<Chapter> Chapters { get; set; } = new List<Chapter>();
     }
 }

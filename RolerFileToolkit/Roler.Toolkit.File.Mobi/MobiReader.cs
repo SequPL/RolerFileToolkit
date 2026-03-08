@@ -81,6 +81,7 @@ namespace Roler.Toolkit.File.Mobi
         {
             var result = this.ReadWithoutText();
             result.Text = this.ReadText(result.Structure, configuration);
+            result.Chapters = this.ReadChapters(result.Structure);
 
             return result;
         }
@@ -432,6 +433,61 @@ namespace Roler.Toolkit.File.Mobi
                 }
             }
             return result;
+        }
+
+        #endregion
+
+        #region Chapters
+
+        /// <summary>
+        /// Reads chapter information from INDX records.
+        /// </summary>
+        public IList<Chapter> ReadChapters(Structure structure)
+        {
+            var chapters = new List<Chapter>();
+
+            if (this._disposed)
+            {
+                throw new ObjectDisposedException("stream");
+            }
+            if (structure is null)
+            {
+                throw new ArgumentNullException(nameof(structure));
+            }
+
+            // Check if INDX is available
+            if (structure.IndxHeader == null || 
+                structure.MobiHeader?.INDXRecordOffset == MobiHeaderEngine.UnavailableIndex)
+            {
+                return chapters;
+            }
+
+            // Get the INDX record offset
+            var indxRecordOffset = (int)structure.MobiHeader.INDXRecordOffset;
+            if (indxRecordOffset >= structure.PalmDB.RecordInfoList.Count)
+            {
+                return chapters;
+            }
+
+            var indxRecordInfo = structure.PalmDB.RecordInfoList[indxRecordOffset];
+            
+            // Parse INDX entries
+            var entries = IndxHeaderEngine.ReadEntries(this._stream, indxRecordInfo.Offset, structure.IndxHeader, this._palmDBRecordList);
+            
+            // Convert IndxEntry to Chapter
+            for (int i = 0; i < entries.Count; i++)
+            {
+                var entry = entries[i];
+                var chapter = new Chapter
+                {
+                    Title = entry.Label,
+                    FileOffset = entry.Offset,
+                    Length = (i + 1 < entries.Count) ? (int)(entries[i + 1].Offset - entry.Offset) : 0
+                };
+                chapters.Add(chapter);
+            }
+
+            return chapters;
         }
 
         #endregion
