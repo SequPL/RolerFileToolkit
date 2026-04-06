@@ -186,7 +186,27 @@ namespace Roler.Toolkit.File.Mobi
             }
             return null;
         }
+        public byte[] ReadContentFileBytes(ContentFile contentFile)
+        {
+            if (this._disposed)
+            {
+                throw new ObjectDisposedException("stream");
+            }
+            if (contentFile is null)
+            {
+                throw new ArgumentNullException(nameof(contentFile));
+            }
 
+            if (int.TryParse(contentFile.Source, out int index) && index < this._palmDBRecordList.Count)
+            {
+                byte[] bytes = this.ReadPalmDBRecord(this._palmDBRecordList[index]);
+                if (bytes != null)
+                {
+                    return bytes;
+                }
+            }
+            return Array.Empty<byte>();
+        }
         /// <summary>
         /// Gets image by record index (rectindex) - provides correct mapping for image indices
         /// </summary>
