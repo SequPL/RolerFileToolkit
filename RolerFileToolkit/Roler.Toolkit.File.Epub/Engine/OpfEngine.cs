@@ -1,5 +1,6 @@
 ﻿using System.IO;
 using System.Xml.Linq;
+using System.Globalization;
 using Roler.Toolkit.File.Epub.Define;
 using Roler.Toolkit.File.Epub.Entity;
 
@@ -104,7 +105,8 @@ namespace Roler.Toolkit.File.Epub.Engine
                     Id = element.Attribute(ATTRIBUTE_ID)?.Value,
                 };
 
-                if (float.TryParse(element.Attribute(ATTRIBUTE_VERSION)?.Value, out float version))
+                if (float.TryParse(element.Attribute(ATTRIBUTE_VERSION)?.Value,
+                    NumberStyles.Float, CultureInfo.InvariantCulture, out float version))
                 {
                     result.Version = version;
                 }
